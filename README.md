@@ -76,6 +76,28 @@ The script writes a Windows shortcut to `users/crossover/AppData/Roaming/Microso
 
 `extract_icon.py` is a small extra helper that pulls the game icon out of `RCT3.exe` as an `.ico`, e.g. for making your own Dock launcher.
 
+## Troubleshooting
+
+### The shortcut in CrossOver says "RollerCoaster Tycoon 3.app" doesn't exist, or the shortcut is gone
+
+CrossOver lists a bottle's programs through small launcher apps in `~/Applications/CrossOver/`. It builds such an app only when a shortcut is **new** compared with its cached menu list (`MostRecentCXFBMenuPlist` in `com.codeweavers.CrossOver` preferences). If the app gets deleted, CrossOver won't rebuild it on its own, so don't delete or modify these apps.
+
+To recover:
+
+1. Quit CrossOver (Cmd+Q).
+2. Remove the cached entry:
+   ```bash
+   defaults export com.codeweavers.CrossOver /tmp/cx.plist && cp /tmp/cx.plist /tmp/cx.backup.plist
+   BOTTLE_ID=$(grep -o 'CrossOver-[0-9A-F-]*/' "$HOME/Library/Application Support/CrossOver/Bottles/Epic Games Store/desktopdata/cxmenu/cxmenu_macosx.plist" | head -1)
+   /usr/libexec/PlistBuddy -c "Delete ':MostRecentCXFBMenuPlist:$BOTTLE_ID:Children:StartMenu/:Children:Windows Applications/:Children:RollerCoaster Tycoon 3'" /tmp/cx.plist
+   defaults import com.codeweavers.CrossOver /tmp/cx.plist
+   ```
+3. Reopen CrossOver. It recreates `RollerCoaster Tycoon 3.app` and the shortcut works again.
+
+### Why convert the music to WAV instead of adding WMA support?
+
+Adding WMA support would mean adding `gst-libav` (ffmpeg) to CrossOver's bundled GStreamer. That GStreamer (1.24.4) is built for **x86_64** and runs under Rosetta, so Homebrew's arm64 builds can't be loaded. You'd have to cross-compile gst-libav and ffmpeg for x86_64 against that exact GStreamer version and place them inside the signed `CrossOver.app`, where every CrossOver update removes them again. Installing Microsoft's native WMA decoder into the bottle is possible too, but fragile. The WAV conversion works with stock CrossOver and survives updates; the cost is ~1 GB of disk space.
+
 ## Emergency exit
 
 If the game ever hangs or shows a black screen, close it from Terminal (or over SSH from another device):
