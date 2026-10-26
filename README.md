@@ -98,6 +98,34 @@ To recover:
 
 Adding WMA support would mean adding `gst-libav` (ffmpeg) to CrossOver's bundled GStreamer. That GStreamer (1.24.4) is built for **x86_64** and runs under Rosetta, so Homebrew's arm64 builds can't be loaded. You'd have to cross-compile gst-libav and ffmpeg for x86_64 against that exact GStreamer version and place them inside the signed `CrossOver.app`, where every CrossOver update removes them again. Installing Microsoft's native WMA decoder into the bottle is possible too, but fragile. The WAV conversion works with stock CrossOver and survives updates; the cost is ~1 GB of disk space.
 
+## Known issues
+
+### Main menu freezes for a few seconds, about every 10 seconds
+
+Input stops responding (animations keep running) right before the main-menu background picture changes. The menu's slideshow loads the next JPEG from `Slideshow/Default/` and scales it to the window size **on the game's main thread**, using code compiled into `RCT3.exe` that is very slow under Rosetta. A DirectInput/file trace shows the main thread going silent for exactly that long after each `Slideshow\Default\*.jpg` is opened:
+
+| Window size | Stall per picture |
+|---|---|
+| 1920×1200 | ~6.3 s |
+| 1280×800 | ~3.3 s |
+
+The stall doesn't depend on the picture's file size, and even a single picture is reloaded every cycle. Only the main menu is affected, not the park. Disabling Wine's DirectInput mouse warping (`MouseWarpOverride`) and using the original WMA music don't change it.
+
+Workaround if the freezes bother you: move the pictures out of `Slideshow/Default/`. The menu then has no stalls at all, but the big circle behind it stays black:
+
+```bash
+cd ".../Program Files/Epic Games/RollerCoasterTycoon3/Slideshow"
+mkdir -p ../Slideshow-Default.backup && mv Default/*.jpg ../Slideshow-Default.backup/
+```
+
+### The green fullscreen button is greyed out
+
+Wine only enables the macOS fullscreen button for windows that are resizable on the Windows side. RCT3 uses a fixed-size window, so the button stays disabled. Choose a `Resolution` that fills your screen instead.
+
+### Can the WAV music be compressed with afsctool?
+
+It's not worth it: transparent APFS compression (`afsctool -c`, LZFSE or zlib -9) saves only about 4% on the PCM tracks.
+
 ## Emergency exit
 
 If the game ever hangs or shows a black screen, close it from Terminal (or over SSH from another device):
